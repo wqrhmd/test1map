@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Site Locator & Directions</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDcDajLq7w7Tnm-ZTKxBRvmtAx4OsrO9Os&libraries=places"></script>
+    <script>
+        let map;
+        let markers = {};
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 26.43777, lng: 50.022179 }, // Default to Dammam
+                zoom: 10
+            });
+        }
+
+        function loadCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const rows = e.target.result.split('\n').map(row => row.split(','));
+                if (rows.length < 2) {
+                    alert("CSV file is empty or incorrectly formatted.");
+                    return;
+                }
+                
+                const headers = rows.shift().map(header => header.trim());
+                console.log("CSV Headers:", headers);
+                
+                const siteIdIndex = headers.indexOf("Site ID");
+                const latIndex = headers.indexOf("latitude");
+                const lngIndex = headers.indexOf("longitude");
+                
+                if (siteIdIndex === -1 || latIndex === -1 || lngIndex === -1) {
+                    alert("CSV format incorrect. Ensure headers include 'Site ID', 'latitude', and 'longitude'.");
+                    return;
+                }
+                
+                markers = {}; // Clear previous markers
+                rows.forEach(row => {
+                    if (row.length < Math.max(siteIdIndex, latIndex, lngIndex) + 1) return;
+                    const siteId = row[siteIdIndex]?.trim();
+                    const lat = parseFloat(row[latIndex]);
+                    const lng = parseFloat(row[lngIndex]);
+                    
+                    if (siteId && !isNaN(lat) && !isNaN(lng)) {
+                        const marker = new google.maps.Marker({
+                            position: { lat, lng },
+                            map,
+                            title: siteId, // Marker labeled with Site ID
+                            label: siteId
+                        });
+                        markers[siteId] = { lat, lng, marker };
+                    }
+                });
+                console.log("Markers Loaded:", markers);
+            };
+            reader.readAsText(file);
+        }
+
+        function searchSite() {
+            if (!map) {
+                alert("Map not initialized. Please wait.");
+                return;
+            }
+            
+            const siteId = document.getElementById("siteSearch").value.trim();
+            console.log("Searching for:", siteId);
+            
+            if (markers[siteId]) {
+                const { lat, lng, marker } = markers[siteId];
+                map.setCenter({ lat, lng });
+                map.setZoom(15);
+                marker.setAnimation(google.maps.Animation.BOUNCE);
+                setTimeout(() => marker.setAnimation(null), 2000);
+            } else {
+                alert("Site not found! Check the Site ID or reload the CSV file.");
+            }
+        }
+
+        function getDirections() {
+            if (!map) {
+                alert("Map not initialized. Please wait.");
+                return;
+            }
+            
+            const siteId = document.getElementById("siteSearch").value.trim();
+            console.log("Getting directions for:", siteId);
+            
+            if (markers[siteId]) {
+                const { lat, lng } = markers[siteId];
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+            } else {
+                alert("Site not found! Check the Site ID or reload the CSV file.");
+            }
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <h2>Google Maps Site Search</h2>
+    <input type="file" accept=".csv" onchange="loadCSV(event)"><br><br>
+    <input type="text" id="siteSearch" placeholder="Enter Site ID">
+    <button onclick="searchSite()">Search</button>
+    <button onclick="getDirections()">Get Directions</button>
+    <div id="map" style="width: 100%; height: 500px; margin-top: 20px;"></div>
+</body>
+</html>
